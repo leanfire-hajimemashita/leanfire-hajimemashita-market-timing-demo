@@ -1,7 +1,8 @@
 let prices = [];
-let currentIndex = 3;
+let currentIndex = 0;
 let chart;
 let intervalId;
+let startIndex = 0;
 
 let buyPrice = null;
 let sellPrice = null;
@@ -22,14 +23,18 @@ function parseCSV(text) {
 }
 
 function startPlayback() {
+  // ランダムな開始位置を設定
+  startIndex = Math.floor(Math.random() * (prices.length - 13));
+  currentIndex = startIndex;
+
   const ctx = document.getElementById('chart').getContext('2d');
   chart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: prices.slice(0, 3).map(p => p.date),
+      labels: [prices[currentIndex].date],
       datasets: [{
         label: 'S&P500',
-        data: prices.slice(0, 3).map(p => p.close),
+        data: [prices[currentIndex].close],
         borderColor: 'blue',
         fill: false
       }]
@@ -40,23 +45,26 @@ function startPlayback() {
 }
 
 function updateChart() {
+  currentIndex++;
   if (currentIndex >= prices.length) {
     clearInterval(intervalId);
     return;
   }
 
-  const start = Math.max(0, currentIndex - 2);
-  const end = currentIndex + 1;
+  chart.data.labels.push(prices[currentIndex].date);
+  chart.data.datasets[0].data.push(prices[currentIndex].close);
 
-  chart.data.labels = prices.slice(start, end).map(p => p.date);
-  chart.data.datasets[0].data = prices.slice(start, end).map(p => p.close);
+  // 表示範囲が1年以上（12ヶ月）なら古いデータを削除
+  if (chart.data.labels.length > 12) {
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
+  }
+
   chart.update();
-
-  currentIndex++;
 }
 
 function buy() {
-  buyPrice = prices[currentIndex - 1].close;
+  buyPrice = prices[currentIndex].close;
   document.getElementById('result').innerText = `買値: ${buyPrice.toFixed(2)}`;
 }
 
@@ -65,10 +73,11 @@ function sell() {
     alert('先に買ってください！');
     return;
   }
-  sellPrice = prices[currentIndex - 1].close;
+  sellPrice = prices[currentIndex].close;
   profit = sellPrice - buyPrice;
   document.getElementById('result').innerText =
     `買値: ${buyPrice.toFixed(2)}、売値: ${sellPrice.toFixed(2)}、損益: ${profit.toFixed(2)}`;
+  clearInterval(intervalId); // チャート更新を止める
 }
 
 function share() {
@@ -77,10 +86,10 @@ function share() {
     return;
   }
   const text = encodeURIComponent(
-    `S&P500 マーケットタイミング体験\\n` +
-    `買値: ${buyPrice.toFixed(2)}\\n` +
-    `売値: ${sellPrice.toFixed(2)}\\n` +
-    `損益: ${profit.toFixed(2)}\\n` +
+    `S&P500 マーケットタイミング体験\n` +
+    `買値: ${buyPrice.toFixed(2)}\n` +
+    `売値: ${sellPrice.toFixed(2)}\n` +
+    `損益: ${profit.toFixed(2)}\n` +
     `#マーケットタイミングチャレンジ`
   );
   const url = `https://twitter.com/intent/tweet?text=${text}`;
@@ -96,14 +105,17 @@ function downloadChart() {
 
 function resetChart() {
   clearInterval(intervalId);
-  currentIndex = 3;
   buyPrice = null;
   sellPrice = null;
   profit = null;
   document.getElementById('result').innerText = '';
 
-  chart.data.labels = prices.slice(0, 3).map(p => p.date);
-  chart.data.datasets[0].data = prices.slice(0, 3).map(p => p.close);
+  // 新しいランダム開始位置
+  startIndex = Math.floor(Math.random() * (prices.length - 13));
+  currentIndex = startIndex;
+
+  chart.data.labels = [prices[currentIndex].date];
+  chart.data.datasets[0].data = [prices[currentIndex].close];
   chart.update();
 
   intervalId = setInterval(updateChart, 500);
